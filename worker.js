@@ -21,5 +21,5 @@ else if(p==='group'){if(!body.name||!body.subject||!body.teacher_id)return json(
 else if(p==='enroll'){await run(db,'INSERT INTO enrollments VALUES(?,?)',body.student_id,body.group_id);}
 else if(p==='lesson'){if(!body.starts_at||!body.ends_at||body.starts_at>=body.ends_at)return json({error:'Invalid time'},400);await run(db,'INSERT INTO lessons(group_id,starts_at,ends_at,room) VALUES(?,?,?,?)',body.group_id,body.starts_at,body.ends_at,body.room||'');}
 else if(p==='payment'){if(!Number.isFinite(Number(body.amount))||Number(body.amount)<=0)return json({error:'Invalid amount'},400);await run(db,'INSERT INTO payments(student_id,amount,paid_at,note) VALUES(?,?,?,?)',body.student_id,Number(body.amount),body.paid_at||new Date().toISOString(),body.note||'');}
-else return json({error:'Not found'},404);return json({ok:true});}catch(e){return json({error:'Request could not be completed'},400)}}};
+else return json({error:'Not found'},404);return json({ok:true});}catch(e){console.error(e);return json({error:req.headers.get('x-setup-debug')===env.SETUP_SECRET?String(e):'Request could not be completed'},400)}}};
 
