@@ -1,7 +1,7 @@
 const json=(v,status=200,headers={})=>new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers}});
 const hex=b=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
 async function digest(s){return hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))}
-async function pw(p,s){let k=await crypto.subtle.importKey('raw',new TextEncoder().encode(p),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(s),iterations:120000,hash:'SHA-256'},k,256))}
+async function pw(p,s){let k=await crypto.subtle.importKey('raw',new TextEncoder().encode(p),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(s),iterations:100000,hash:'SHA-256'},k,256))}
 async function makepw(p){let salt=hex(crypto.getRandomValues(new Uint8Array(16)));return salt+':'+await pw(p,salt)}
 const all=async(db,q,...a)=>(await db.prepare(q).bind(...a).all()).results;
 const run=async(db,q,...a)=>db.prepare(q).bind(...a).run();
@@ -21,5 +21,5 @@ else if(p==='group'){if(!body.name||!body.subject||!body.teacher_id)return json(
 else if(p==='enroll'){await run(db,'INSERT INTO enrollments VALUES(?,?)',body.student_id,body.group_id);}
 else if(p==='lesson'){if(!body.starts_at||!body.ends_at||body.starts_at>=body.ends_at)return json({error:'Invalid time'},400);await run(db,'INSERT INTO lessons(group_id,starts_at,ends_at,room) VALUES(?,?,?,?)',body.group_id,body.starts_at,body.ends_at,body.room||'');}
 else if(p==='payment'){if(!Number.isFinite(Number(body.amount))||Number(body.amount)<=0)return json({error:'Invalid amount'},400);await run(db,'INSERT INTO payments(student_id,amount,paid_at,note) VALUES(?,?,?,?)',body.student_id,Number(body.amount),body.paid_at||new Date().toISOString(),body.note||'');}
-else return json({error:'Not found'},404);return json({ok:true});}catch(e){console.error(e);return json({error:req.headers.get('x-setup-debug')===env.SETUP_SECRET?String(e):'Request could not be completed'},400)}}};
+else return json({error:'Not found'},404);return json({ok:true});}catch(e){console.error(e);return json({error:'Request could not be completed'},400)}}};
 
