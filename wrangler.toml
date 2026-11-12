@@ -7,5 +7,6 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "eduerp-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "68d06de4-f3f7-426d-92df-26358baba890"
+
 
