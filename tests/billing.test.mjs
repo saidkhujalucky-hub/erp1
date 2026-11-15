@@ -1,0 +1,30 @@
+import { DatabaseSync } from 'node:sqlite';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {handleBilling} from '../billing.js';
+const sql = new DatabaseSync(':memory:');
+for(const name of ['schema.sql','migrations/0003_billing.sql']) sql.exec(fs.readFileSync(new URL('../'+name,import.meta.url),'utf8'));
+sql.exec("INSERT INTO students(id,name,active) VALUES(1,'Active',1),(2,'Former',0); INSERT INTO groups(id,name,subject,monthly_fee) VALUES(1,'A','English',500); INSERT INTO enrollments VALUES(1,1),(2,1); INSERT INTO payments(student_id,amount,paid_at) VALUES(1,100,'2025-01-01');");
+const db={prepare(query){const stmt=sql.prepare(query);return {bind(...args){return {
+  all(){return {results:stmt.all(...args)}},first(){return stmt.get(...args)},run(){return {meta:stmt.run(...args)}}
+}}}}};
+const call=(p,body,role='admin',search='')=>handleBilling({p,method:body?'POST':'GET',body,db,user:{role},url:new URL('https://example.org/'+p+search),json:(body,status=200)=>({body,status})});
+const month=(await call('billing')).body.currentMonth;
+assert.equal((await call('billing',null,'teacher')).status,403);
+assert.equal((await call('billing/open',{month,group_id:1})).body.added,1);
+assert.equal((await call('billing/open',{month,group_id:1})).body.added,0);
+assert.equal((await call('billing/open',{month:'2015-01',group_id:1})).status,400);
+assert.equal((await call('billing')).body.charges[0].paid,0);
+assert.equal((await call('billing/unallocated',{charge_id:1})).body.payments.length,1);
+assert.equal((await call('billing/allocate',{charge_id:1,payment_id:1})).status,200);
+assert.equal((await call('billing/allocate',{charge_id:1,payment_id:1})).status,200);
+const payment={charge_id:1,request_key:'1234567890123456',amount:300,paid_at:'2026-11-15',note:'First'};
+assert.equal((await call('billing/payment',payment)).status,200);
+assert.equal((await call('billing/payment',payment)).status,200);
+assert.equal((await call('billing')).body.charges[0].paid,400);
+assert.equal((await call('billing/payment',{...payment,request_key:'2345678901234567',amount:101})).status,409);
+assert.equal((await call('billing/payment',{...payment,amount:50})).status,409);
+assert.equal((await call('billing/payment',{...payment,request_key:'2345678901234567',amount:100})).status,200);
+assert.equal((await call('billing')).body.charges[0].paid,500);
+assert.equal(sql.prepare('SELECT SUM(amount) n FROM payments').get().n,500);
+console.log('Billing integration checks passed');
